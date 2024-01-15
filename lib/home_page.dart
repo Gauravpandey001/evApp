@@ -1,186 +1,242 @@
-import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
+import 'package:evapp/charging_station_details.dart';
+import 'package:evapp/login_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers.dart';
 
-void main() {
-  runApp(MyApp());
-}
-
-class ChargingStation {
-  final String evseName;
-  final String status;
-  final String powerType;
-  final int maxElectricPower;
-
-  ChargingStation({
-    required this.evseName,
-    required this.status,
-    required this.powerType,
-    required this.maxElectricPower,
-  });
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EV Charging Stations',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: HomePage(),
-    );
-  }
-}
-
-class HomePage extends StatefulWidget {
-  @override
-  _HomePageState createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  late List<ChargingStation> _chargingStations;
-  String mobileNumber = '123-456-7890'; // Replace with the actual mobile number
+class HomePage extends ConsumerWidget {
+  final List<String> randomNames = ['Novotel Hotel', 'Westown Parking', 'Brooklands Hill'];
 
   @override
-  void initState() {
-    super.initState();
-    _chargingStations = [];
-    _fetchChargingStations();
-  }
-
-  Future<void> _fetchChargingStations() async {
-    try {
-      final response = await http.get(Uri.parse('https://mocki.io/v1/d86221e4-6755-4666-96ba-bf88b61a3cdc'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _chargingStations = data.map((station) {
-            return ChargingStation(
-              evseName: station['evse_name'] ?? 'NA',
-              status: station['status'] ?? 'NA',
-              powerType: _getPowerType(station['connectors'][0]['power_type']),
-              maxElectricPower: station['connectors'][0]['max_electric_power'] ?? 0,
-            );
-          }).toList();
-        });
-      } else {
-        print('Failed to load charging stations. Status code: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error loading charging stations: $e');
-    }
-  }
-
-  String _getPowerType(String? powerType) {
-    if (powerType == 'AC_1_PHASE') {
-      return 'Type: 1';
-    } else if (powerType == 'AC_2_PHASE') {
-      return 'Type: 2';
-    } else {
-      return 'NA';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('EV Charging Stations'),
-      ),
-      body: _chargingStations.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        itemCount: _chargingStations.length,
-        itemBuilder: (context, index) {
-          final station = _chargingStations[index];
-          return Card(
-            margin: EdgeInsets.all(8.0),
-            child: ListTile(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChargingStationDetails(station: station),
-                  ),
-                );
-              },
-              leading: Image.asset('assets/charger.png', width: 48.0, height: 48.0),
-              title: Text(station.evseName),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${station.powerType}'),
-                  Text('Wattage: ${station.maxElectricPower}W'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatusIndicator(station.status),
-                    ],
-                  ),
-                ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: _buildSearchBar(), // Replace the title with the search bar
+          actions: [],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Nearby Chargers (3)',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          );
-        },
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: Icon(Icons.person),
-              onPressed: () {
-                _showProfileDialog(context, mobileNumber);
-              },
+            Expanded(
+              child: ref.watch(chargingStationsProvider).when(
+                data: (chargingStations) {
+                  return chargingStations.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                    itemCount: chargingStations.length,
+                    itemBuilder: (context, index) {
+                      final station = chargingStations[index];
+                      final randomName = _getRandomName();
+                      return Card(
+                        margin: EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ChargingStationDetails(
+                                      station: station,
+                                    ),
+                                  ),
+                                );
+                              },
+                              leading: Image.asset(
+                                'assets/station.png',
+                                width: 100.0,
+                                height: 90.0,
+                              ),
+                              title: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    randomName,
+                                    style: TextStyle(
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    station.evseName,
+                                    style: TextStyle(
+                                      fontSize: 14.0,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Location ',
+                                        style: TextStyle(
+                                          fontSize: 14.0,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      _buildDot(),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '1.4 mi',
+                                        style: TextStyle(
+                                          fontSize: 14.0,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Power Type: ${station.powerType}',
+                                    style: TextStyle(
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Wattage: ${station.maxElectricPower}W',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: _buildStatusPill(station.status),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+                loading: () => Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Error: $error')),
+              ),
             ),
           ],
+        ),
+        bottomNavigationBar: BottomAppBar(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    _showProfileDialog(context, ref);
+                  },
+                  child: Text('Profile'),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusIndicator(String status) {
-    Color indicatorColor;
+  Widget _buildStatusPill(String status) {
+    Color color;
     switch (status.toLowerCase()) {
+      case 'unknown':
+        color = Colors.red;
+        break;
       case 'available':
-        indicatorColor = Colors.green;
-        break;
-      case 'charging':
-        indicatorColor = Colors.blue;
-        break;
-      case 'unavailable':
-        indicatorColor = Colors.red;
+        color = Colors.green;
         break;
       default:
-        indicatorColor = Colors.grey;
+        color = Colors.grey;
     }
 
     return Container(
-      padding: EdgeInsets.all(4.0),
       decoration: BoxDecoration(
-        color: indicatorColor,
-        borderRadius: BorderRadius.circular(4.0),
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Text(
+        status,
+        style: TextStyle(color: Colors.white),
       ),
     );
   }
 
-  void _showProfileDialog(BuildContext context, String mobileNumber) {
+  String _getRandomName() {
+    final random = Random();
+    return randomNames[random.nextInt(randomNames.length)];
+  }
+
+  Widget _buildDot() {
+    return Container(
+      width: 6.0,
+      height: 6.0,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.grey,
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.black),
+        color: Colors.white,
+      ),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Search Chargers',
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  void _showProfileDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Profile'),
+          title: Text("Profile"),
           content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Mobile Number: $mobileNumber'),
-              SizedBox(height: 16),
+              Text(
+                'Phone Number: +1234567890',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
-                  _logout();
                   Navigator.of(context).pop();
+                  _showLogoutDialog(context, ref);
                 },
                 child: Text('Logout'),
               ),
@@ -191,38 +247,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _logout() async {
-    // Perform logout logic...
-    // For example, sign out the user from Firebase Auth
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Logout"),
+          content: Text("Are you sure you want to logout?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                // Clear any authentication state or data
+                // You might want to call a sign-out method or clear user data here
 
-    // Navigate to the login screen
-    await FirebaseAuth.instance.signOut();
-
-  }
-}
-
-class ChargingStationDetails extends StatelessWidget {
-  final ChargingStation station;
-
-  ChargingStationDetails({required this.station});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(station.evseName),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Power Type: ${station.powerType}'),
-            Text('Wattage: ${station.maxElectricPower}W'),
-            Text('Status: ${station.status}'),
+                // Navigate back to the login screen
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginPage()),
+                      (Route<dynamic> route) => false,
+                );
+              },
+              child: Text("Logout"),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

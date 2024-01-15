@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:pinput/pinput.dart';
 
 import 'home_page.dart';
 
@@ -11,32 +10,20 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final TextEditingController _firstController = TextEditingController();
-  final TextEditingController _secondController = TextEditingController();
-  final TextEditingController _thirdController = TextEditingController();
-  final TextEditingController _fourthController = TextEditingController();
-  final TextEditingController _fifthController = TextEditingController();
-  final TextEditingController _sixthController = TextEditingController();
+  final List<TextEditingController> controllers =
+  List.generate(6, (_) => TextEditingController());
   String? otpCode;
   final String verificationId = Get.arguments[0];
+  final String lastFourDigits = Get.arguments[1];
   FirebaseAuth auth = FirebaseAuth.instance;
 
   @override
   void dispose() {
-    _firstController.dispose();
-    _secondController.dispose();
-    _thirdController.dispose();
-    _fourthController.dispose();
-    _fifthController.dispose();
-    _sixthController.dispose();
+    controllers.forEach((controller) => controller.dispose());
     super.dispose();
   }
 
-  // verify otp
-  void verifyOtp(
-      String verificationId,
-      String userOtp,
-      ) async {
+  void verifyOtp(String verificationId, String userOtp) async {
     try {
       PhoneAuthCredential creds = PhoneAuthProvider.credential(
           verificationId: verificationId, smsCode: userOtp);
@@ -53,7 +40,6 @@ class _OtpPageState extends State<OtpPage> {
     }
   }
 
-
   void _login() {
     if (otpCode != null) {
       verifyOtp(verificationId, otpCode!);
@@ -66,95 +52,116 @@ class _OtpPageState extends State<OtpPage> {
     }
   }
 
-  _buildSocialLogo(file) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Image.asset(
-          file,
-          height: 38.5,
+  Widget buildText(String text, {double fontSize = 18, Color color = Colors.black}) =>
+      Center(
+        child: Text(
+          text,
+          style: TextStyle(fontSize: fontSize, color: color),
         ),
-      ],
-    );
-  }
+      );
 
-  final ButtonStyle style = ElevatedButton.styleFrom(
-      minimumSize: Size(188, 48),
-      backgroundColor: Color(0xFFFD7877),
-      elevation: 6,
-      textStyle: const TextStyle(fontSize: 16),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(
-            Radius.circular(50),
-          )));
+  Widget buildInputBox(int index) => Container(
+    width: 40,
+    height: 40,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: const Color(0xff2C474A),
+      ),
+    ),
+    child: Center(
+      child: TextFormField(
+        controller: controllers[index],
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
+        keyboardType: TextInputType.number,
+        // Set the keyboard type to numerical
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+        onChanged: (value) {
+          if (value.length == 1) {
+            FocusScope.of(context).nextFocus();
+          } else if (value.isEmpty) {
+            // Handle backspace/delete manually
+            if (index > 0) {
+              controllers[index - 1].text = '';
+              FocusScope.of(context).previousFocus();
+            }
+          }
 
-  Widget buildText(String text) => Center(
-    child: Text(
-      text,
-      style: TextStyle(fontSize: 24, color: Colors.white),
+          setState(() {
+            otpCode = controllers.map((controller) => controller.text).join();
+          });
+        },
+      ),
     ),
   );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xff0F2B2F),
-      // backgroundColor: Color(0xff215D5F),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          color: Colors.black,
+          onPressed: () {
+            for (int i = controllers.length - 1; i >= 0; i--) {
+              if (controllers[i].text.isNotEmpty) {
+                controllers[i].clear();
+                break;
+              } else if (i > 0) {
+                controllers[i - 1].clear();
+                FocusScope.of(context).requestFocus(FocusNode());
+                break;
+              }
+            }
+          },
+        ),
+      ),
       body: SingleChildScrollView(
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const SizedBox(height: 200),
-              buildText('Enter 6 digit OTP'),
-              buildText('sent to your number'),
-              const SizedBox(height: 50),
-              Pinput(
-                length: 6,
-                showCursor: true,
-                defaultPinTheme: PinTheme(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(
-                      color: const Color(0xff2C474A),
-                    ),
-                  ),
-                  textStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey),
+              const SizedBox(height: 20),
+              buildText('We just sent you an SMS', fontSize: 24),
+              buildText(
+                  'To login, enter the security code sent to ******$lastFourDigits',
+                  fontSize: 14,
+                  color: Colors.grey),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(
+                  6,
+                      (index) => buildInputBox(index),
                 ),
-                onCompleted: (value) {
-                  setState(() {
-                    otpCode = value;
-                  });
-                },
               ),
               const SizedBox(height: 30),
               ElevatedButton(
-                  style: style,
-                  onPressed: _login,
-                  child: const Text(
-                    'SIGN IN',
-                    style: TextStyle(fontSize: 14, color: Colors.white),
-                  )),
+                onPressed: _login,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(188, 48),
+                  primary: Colors.blueAccent,
+                  elevation: 6,
+                  textStyle: const TextStyle(fontSize: 14, color: Colors.white),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'SIGN IN',
+                  style: TextStyle(fontSize: 14, color: Colors.white),
+                ),
+              ),
               const SizedBox(height: 80),
-              const Text(
-                "Didn't receive any code?",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "Resend new code",
-                style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 20),
             ],
           ),
         ),

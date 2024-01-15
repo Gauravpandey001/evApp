@@ -1,4 +1,5 @@
 # evApp
+
 This Flutter app displays information about Electric Vehicle (EV) charging stations. It fetches data from a mock API and presents a list of charging stations with details like name, power type, wattage, and status. Users can view station details and see their profile information.
 
 ## Features
@@ -16,25 +17,25 @@ This Flutter app displays information about Electric Vehicle (EV) charging stati
 
 ## Getting Started
 
-1. Clone the repository:
+1. **Clone the repository:**
 
     ```bash
-    git clone [https://github.com/Gauravpandey001/evApp.git]
+    git clone https://github.com/Gauravpandey001/evApp.git
     ```
 
-2. Change directory:
+2. **Change directory:**
 
     ```bash
-    cd EvChargingApplication
+    cd evApp
     ```
 
-3. Run the app:
+3. **Run the app:**
 
     ```bash
     flutter run
     ```
 
-4. Explore the app on your emulator or physical device.
+4. **Explore the app on your emulator or physical device.**
 
 ## Dependencies
 
@@ -42,17 +43,20 @@ This Flutter app displays information about Electric Vehicle (EV) charging stati
 - `http` package for making HTTP requests.
 - `get` package for navigation management.
 - `firebase_core` package for Firebase initialization.
+- `flutter_riverpod` for state management.
 
-## Structure
+## Project Structure
 
-- `main.dart`: Entry point of the application.
-- `login_screen.dart`: Contains the login page UI and logic.
-- `home_page.dart`: Displays the list of charging stations and user profile.
-- `charging_station_details.dart`: Shows detailed information about a specific charging station.
+- `lib/main.dart`: Entry point of the application.
+- `lib/login_screen.dart`: Contains the login page UI and logic.
+- `lib/home_page.dart`: Displays the list of charging stations and user profile.
+- `lib/charging_station_details.dart`: Shows detailed information about a specific charging station.
+- `lib/http.dart`: Handles HTTP requests to fetch charging station data.
+- `lib/providers.dart`: Contains Riverpod providers used for state management.
 
-## Notes
+## Authentication
 
-- The app currently fetches data from a mock API (https://mocki.io/v1/d86221e4-6755-4666-96ba-bf88b61a3cdc). Replace this with your actual data source.
+- The app currently uses a mock API for fetching data.
 - The user profile section and logout functionality are placeholders. Implement actual authentication and user management as needed.
 
 Feel free to explore and customize the app according to your requirements!
